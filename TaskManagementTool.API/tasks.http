@@ -1,0 +1,44 @@
+GET http://localhost:5032/tasks
+###
+
+GET http://localhost:5032/tasks/10
+
+###
+GET http://localhost:5032/tasks/category/1
+
+###
+GET http://localhost:5032/tasks/completed/false
+
+###
+GET http://localhost:5032/tasks/1/false
+
+###
+POST http://localhost:5032/tasks
+Content-Type: application/json
+
+{
+    "title": "testing",
+    "categoryId": 1,
+    "description": "Testing post",
+    "dueDate": "2011-08-12",
+    "isDone": false,
+    "timeSpent": null,
+    "planPoints": null
+}
+
+###
+PUT http://localhost:5032/tasks/2
+Content-Type: application/json
+
+{
+    "title": "Updated 2 EXTRA UPDATED",
+    "categoryId": 8,
+    "description": "meowmeowdawdawdad",
+    "dueDate": "2011-08-12",
+    "isDone": true,
+    "timeSpent": null,
+    "planPoints": null
+  }
+
+###
+DELETE http://localhost:5032/tasks/1

@@ -1,0 +1,74 @@
+﻿@page "/newtask"
+@rendermode InteractiveServer
+@inject NavigationManager NavigationManager
+@inject TasksClient TasksClient
+@inject CategoryClient CategoryClient
+
+<PageTitle>New Task</PageTitle>
+
+@if (categories is null)
+{
+	<p><em>Loading...</em></p>
+}
+else
+{
+	<div class="row mt-5 justify-content-center ">
+		<div class="col-md-4">
+			<h3>New Task</h3>
+			<EditForm Model="@task" FormName="newTask" OnValidSubmit="HandleSubmitAsync">
+				<DataAnnotationsValidator />
+				<div class="mb-3">
+					<label for="title" class="form-label">Title:</label>
+					<InputText id="title" @bind-Value="task.Title" class="form-control" />
+					<ValidationMessage For="() => task.Title" />
+				</div>
+				<div class="mb-3">
+					<label for="description" class="form-label">Description:</label>
+					<InputTextArea id="description" @bind-Value="task.Description" class="form-control" />
+					<ValidationMessage For="() => task.Description" />
+
+				</div>
+				<div class="mb-3">
+					<label for="category" class="form-label">Category:</label>
+					<InputSelect id="category" @bind-Value="task.CategoryId" class="form-select">
+						<option value="">Select a category</option>
+						@foreach (var category in categories)
+						{
+							<option value="@category.Id">@category.Name</option>
+						}
+					</InputSelect>
+					<ValidationMessage For="() => task.CategoryId" />
+				</div>
+				<div class="mb-3">
+					<label for="dueDate" class="form-label">Due Date:</label>
+					<InputDate id="dueDate" @bind-Value="task.DueDate" class="form-control" />
+				</div>
+				<button type="submit" class="btn btn-primary">Create Task</button>
+				<a role="button" class="btn btn-secondary" href="/">Cancel</a>
+			</EditForm>
+		</div>
+	</div>
+}
+
+@code {
+	[SupplyParameterFromForm]
+	private TaskDetails task { get; set; } = new()
+		{
+			Title = string.Empty,
+			Description = string.Empty,
+			DueDate = new DateOnly(2024,4,4)
+		};
+
+	private Category[]? categories;
+
+	protected override async Task OnInitializedAsync()
+	{
+		categories = await CategoryClient.GetCategoriesAsync();
+	}
+
+	private async Task HandleSubmitAsync()
+	{
+		await TasksClient.AddTaskAsync(task);
+		NavigationManager.NavigateTo("/");
+	}
+}

@@ -1,0 +1,180 @@
+﻿@page "/task"
+@page "/task/{id:int}"
+@rendermode InteractiveServer
+@using System.Timers
+@attribute [StreamRendering]
+
+@inject NavigationManager NavigationManager
+@inject TasksClient TasksClient
+@inject CategoryClient CategoryClient
+
+<PageTitle>@title</PageTitle>
+<h3 class="mt-4 mb-4">Task: @title</h3>
+
+@if (categories is null || task is null)
+{
+	<p><em>Loading...</em></p>
+}
+else
+{
+	<div class="container">
+		<div class="row ">
+			<div class="col-md-5 me-md-5 p-3 border border-dark rounded-4 justify-content-start">
+			<EditForm Model="@task" FormName="newTask" OnValidSubmit="HandleSubmitAsync">
+				<DataAnnotationsValidator />
+				<div class="mb-3">
+					<label for="title" class="form-label">Title:</label>
+					<InputText id="title" @bind-Value="task.Title" class="form-control" />
+					<ValidationMessage For="() => task.Title" />
+				</div>
+				<div class="mb-3">
+					<label for="description" class="form-label">Description:</label>
+					<InputTextArea id="description" @bind-Value="task.Description" class="form-control" />
+					<ValidationMessage For="() => task.Description" />
+
+				</div>
+				<div class="mb-3">
+					<label for="category" class="form-label">Category:</label>
+					<InputSelect id="category" @bind-Value="task.CategoryId" class="form-select">
+						<option value="">Select a category</option>
+						@foreach (var category in categories)
+						{
+							<option value="@category.Id">@category.Name</option>
+						}
+					</InputSelect>
+					<ValidationMessage For="() => task.CategoryId" />
+				</div>
+				<div class="mb-3">
+					<label for="dueDate" class="form-label">Due Date:</label>
+					<InputDate id="dueDate" @bind-Value="task.DueDate" class="form-control" />
+				</div>
+					<div class="mb-3">
+						<p>Time Spent on task: <em>@task.TimeSpent</em></p>
+					</div>
+					<div class="mb-3">
+						<label for="isDone" class="form-label">Task finished:</label>
+						<InputCheckbox id="isDone" @bind-Value="task.IsDone" class="" />
+					</div>
+				<button type="submit" class="btn btn-primary">Update Task</button>
+				<a role="button" class="btn btn-secondary" href="/">Cancel</a>
+			</EditForm>
+		</div>
+			<div class="col-md-5 ms-5 p-3 border border-dark rounded-4 d-flex justify-content-center align-items-center ">
+				<div class="row d-flex justify-content-center">
+					<div class="d-flex justify-content-center mb-5">
+						<h3>Timer</h3>
+					</div>
+					<div class="d-flex justify-content-center mb-5">
+						<h1>@timeSpentFormatted</h1>
+					</div>
+						
+						<div class="mb-3 d-flex justify-content-center">
+							<button class="btn btn-primary me-3" @onclick="StartTimer">Start/Stop</button>
+							<button class="btn btn-secondary" @onclick="ResetTimer">Reset</button>
+						</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+}
+
+@code {
+	[Parameter]
+	public int? Id { get; set; }
+	[SupplyParameterFromForm]
+	private TaskDetails? task { get; set; }
+	private Category[]? categories;
+	private string title = string.Empty;
+
+	private Timer timer = new Timer(1000);
+	private TimeSpan timeSpent = TimeSpan.Zero;
+	private bool isRunning = false;
+	
+	private string timeSpentFormatted => $"{timeSpent:hh\\:mm\\:ss}";
+
+	protected async override Task OnParametersSetAsync()
+	{
+		if(task is not null)
+		{
+			return;	
+		}
+
+		if(Id is not null)
+		{
+			task = await TasksClient.GetTaskAsync(Id.Value);
+			title = $"{task.Title}";
+		}
+		else
+		{
+			NavigationManager.NavigateTo("/newtask");
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		categories = await CategoryClient.GetCategoriesAsync();
+		timer.Elapsed += TimerElapsed;
+	}
+
+
+	private async Task HandleSubmitAsync()
+	{
+		ArgumentNullException.ThrowIfNull(task);
+
+		if (Id is null)
+		{
+			NavigationManager.NavigateTo("/newtask");
+
+		}
+		else
+		{
+			task.Id = Id.Value;
+			await TasksClient.UpdateTaskAsync(task);
+		}
+		NavigationManager.NavigateTo("/");
+	}
+
+	private void TimerElapsed(object? sender, ElapsedEventArgs e)
+	{
+		timeSpent = timeSpent.Add(TimeSpan.FromSeconds(1));
+		InvokeAsync(StateHasChanged);
+	}
+
+	private void StartTimer()
+	{
+		if (!isRunning)
+		{
+			timer.Start();
+			isRunning = true;
+		}
+		else
+		{
+			timer.Stop();
+			HandleTimeUpdated(timeSpent);
+			isRunning = false;
+		}
+
+	}
+
+	private void ResetTimer()
+	{
+		timeSpent = TimeSpan.Zero;
+		if (!isRunning)
+		{
+			InvokeAsync(StateHasChanged);
+		}
+		
+	}
+
+	private void HandleTimeUpdated(TimeSpan newTime)
+	{
+		if (task is not null)
+		{
+			task.TimeSpent = newTime;
+			InvokeAsync(StateHasChanged);
+		}
+	}
+
+}

@@ -1,0 +1,153 @@
+﻿@page "/"
+@inject TasksClient TasksClient
+@inject CategoryClient CategoryClient
+@inject NavigationManager navigationManager
+@rendermode InteractiveServer
+@attribute [StreamRendering]
+
+<PageTitle>Tasks</PageTitle>
+
+@if (tasks is null || categories is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="container border-bottom mb-3">
+        <div class="row justify-content-center mb-3">
+            <div class="col-6 mb-3 mt-5">
+                <select @bind="selectedCategoryId" class="form-select">
+                    <option value="0">All Categories</option>
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-4 mb-3 mt-5">
+                <label for="doneTasks">Hide finished tasks: </label>
+                <input type="checkbox" id="doneTasks" @onchange="CheckboxChange" checked="@checkboxState" />
+                <button class="btn btn-primary ms-2" @onclick="Filter">Filter</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container text-center">
+        <div class="row align-items-start">
+            <div class="col-3 mt-3">
+                <a class="col-12 btn bg-light text-black border-black rounded-4" role="button" href="/newtask">New Task</a>
+            </div>
+            @foreach (var task in tasks)
+            {
+                <div class="col-3">
+                    <div class="position-relative card-wrapper">
+                        <div class="card border-black mt-3 bg-light text-black rounded-4">
+                            <div class="card-body">
+                                <a href="@TaskUrl(task.Id)" class="stretched-link text-decoration-none text-reset"></a>
+                                <div class="row border-bottom">
+                                    <p>@task.Title</p>
+                                </div>
+                                <div class="row text-start mt-1">
+                                    <p class="text-decoration-underline">Category: @task.Category</p>
+                                </div>
+                                <div class="row text-start">
+                                    <p>Description: @task.Description</p>
+                                </div>
+                                <div class="row border-top mt-1">
+                                    <div class="col mt-3">
+                                        @if (!task.IsDone)
+                                        {
+                                            <p>Status: <em>Not Done</em></p>
+                                        }
+                                        else
+                                        {
+                                            <p>Status: <em>Done</em></p>
+                                        }
+                                    </div>
+                                    <div class="col mt-3">
+                                        <p>Due: @task.DueDate</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-danger position-absolute rounded-5" style="width:40px; top: 0; right: 0; z-index: 2;" data-bs-toggle="modal" data-bs-target="@GetDeleteModalId(task)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <DeleteTask Task="@task" OnDeleteCompleted="HandleDelete" />
+                </div>
+            }
+        </div>
+       
+    </div>
+}
+
+@code {
+    private TodoTask[]? tasks;
+    private int selectedCategoryId;
+    private Category[]? categories;
+    private Nullable<bool> isDone;
+    private bool checkboxState => isDone == false;
+
+    private static string TaskUrl(int id) => $"/task/{id}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        tasks = await TasksClient.GetTasksAsync();
+        categories = await CategoryClient.GetCategoriesAsync();
+    }
+
+    private void CheckboxChange(ChangeEventArgs e)
+    {
+        bool newValue = (bool)e.Value!;
+        if (newValue)
+        {
+            isDone = false;
+        }
+        else
+        {
+            isDone = isDone == null ? true : null;
+        }
+    }
+
+    private async Task Filter()
+    {
+
+        if (selectedCategoryId == 0)
+        {
+            if (isDone.HasValue)
+            {
+                tasks = await TasksClient.GetTasksByStatusAsync(isDone.Value);
+            }
+            else
+            {
+                tasks = await TasksClient.GetTasksAsync();
+            }
+        }
+        else
+        {
+            if (isDone.HasValue)
+            {
+                tasks = await TasksClient.GetTasksByStatusAndCategoryAsync(selectedCategoryId, isDone.Value);
+            }
+            else
+            {
+                tasks = await TasksClient.GetTasksByCategoryAsync(selectedCategoryId);
+            }
+        }
+
+    }
+
+    async Task HandleDelete(bool isDeleted)
+    {
+        if (isDeleted)
+        {
+            tasks = await TasksClient.GetTasksAsync();
+        }
+    }
+
+    private string GetDeleteModalId(TodoTask task)
+    {
+        return $"#{DeleteTask.GetModalId(task)}";
+    }
+}
